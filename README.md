@@ -7,7 +7,7 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
 1. Install dependencies
 
    ```bash
-   npm install
+   npm install @expo/vector-icons@^14.0.2 @react-navigation/bottom-tabs@^7.2.0 @react-navigation/native@^7.0.14 expo@~52.0.38 expo-application@~6.0.2 expo-blur@~14.0.3 expo-constants@~17.0.8 expo-font@~13.0.4 expo-haptics@~14.0.1 expo-linking@~7.0.5 expo-router@~4.0.18 expo-splash-screen@~0.29.22 expo-status-bar@~2.0.1 expo-symbols@~0.2.2 expo-system-ui@~4.0.8 expo-web-browser@~14.0.2 lucide-react-native@^0.482.0 nativewind@^4.1.23 react@18.3.1 react-dom@18.3.1 react-native@0.76.7 react-native-appwrite@^0.7.0 react-native-calendars@^1.1310.0 react-native-gesture-handler@~2.20.2 react-native-reanimated@~3.16.1 react-native-safe-area-context@^4.12.0 react-native-screens@~4.4.0 react-native-svg@^15.11.2 react-native-url-polyfill@^2.0.0 react-native-web@~0.19.13 react-native-webview@13.12.5 router@^2.1.0 tailwindcss@^3.4.17
    ```
 
 2. Start the app
