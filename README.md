@@ -1,6 +1,6 @@
-# Welcome to your Expo app 👋
+# My Planner App 👋
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+This is a personal project to get used to React Native Expo and using Appwrite Backend Service.
 
 ## Get started
 
