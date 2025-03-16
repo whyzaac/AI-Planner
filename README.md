@@ -1,6 +1,6 @@
 # My Planner App 👋
 
-This is a personal project to get used to React Native Expo and using Appwrite Backend Service.
+This is a personal project to get used to React Native Expo and Appwrite Backend Service.
 
 ## Get started
 
