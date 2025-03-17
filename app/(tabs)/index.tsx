@@ -80,12 +80,17 @@ const Index = () => {
         newTask.dueTime || "00:00"
       }:00.000+00:00`;
 
-      await database.createDocument(DATABASE_ID, COLLECTION_ID, "unique()", {
-        title: newTask.title,
-        description: newTask.description,
-        due_date: formattedDueDate,
-        completed: false,
-      });
+      await database.createDocument(
+        DATABASE_ID,
+        COLLECTION_ID_TASKS,
+        "unique()",
+        {
+          title: newTask.title,
+          description: newTask.description,
+          due_date: formattedDueDate,
+          completed: false,
+        }
+      );
 
       console.log("✅ Task added successfully!");
       setModalVisible(false);

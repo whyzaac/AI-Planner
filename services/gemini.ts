@@ -3,15 +3,15 @@ import { database } from "./appwrite";
 import { Query } from "react-native-appwrite";
 
 // ✅ Load API Key
-const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY!;
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-// ✅ Configure AI Model with Dual Behavior
+// ✅ Configure AI Model for Task Extraction + Normal Chatting
 const model = genAI.getGenerativeModel({
   model: "gemini-2.0-flash-lite",
   systemInstruction: `You are an AI assistant. 
-- **If the user provides a general query**, respond normally like a chatbot.  
-- **If the user describes an event**, extract the details and return them in **JSON format**.
+- If the user **asks a general question**, respond like a normal chatbot.
+- If the user **describes an event**, extract task details and return them in JSON.
 
 Example event input:
 "I have a meeting on Friday at 3 PM at Starbucks."
@@ -26,11 +26,11 @@ Example event input:
 }
 \`\`\`
 
-If the input is **not an event, respond normally.**`,
+If the input **isn't a task**, respond normally.`,
 });
 
-// ✅ Chat Configuration
-const chat = model.startChat({
+// ✅ Chat Session Storage
+let chatSession = model.startChat({
   generationConfig: {
     temperature: 1,
     topP: 0.95,
@@ -38,12 +38,7 @@ const chat = model.startChat({
     maxOutputTokens: 8192,
     responseMimeType: "application/json",
   },
-  history: [],
 });
-
-const CHAT_HISTORY_COLLECTION_ID =
-  process.env.EXPO_PUBLIC_APPWRITE_CHAT_COLLECTION_ID!;
-const DATABASE_ID = process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!;
 
 /** ✅ Load Chat History from Appwrite */
 export const loadChatHistory = async () => {
@@ -51,8 +46,8 @@ export const loadChatHistory = async () => {
     console.log("📡 Fetching chat history from Appwrite...");
 
     const response = await database.listDocuments(
-      DATABASE_ID,
-      CHAT_HISTORY_COLLECTION_ID,
+      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID!,
+      process.env.EXPO_PUBLIC_APPWRITE_CHAT_COLLECTION_ID!,
       [Query.orderAsc("timestamp")]
     );
 
@@ -62,32 +57,28 @@ export const loadChatHistory = async () => {
         text: doc.message,
       }));
 
-      // ✅ Repopulate Gemini memory
-      chat.history = pastMessages.map((msg) => ({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.text }],
-      }));
+      // ✅ Initialize new chat session with history
+      chatSession = model.startChat({
+        history: pastMessages.map((msg) => ({
+          role: msg.role === "user" ? "user" : "model",
+          parts: [{ text: msg.text }],
+        })),
+      });
 
-      console.log("✅ Chat history restored in Gemini:", chat.history);
+      console.log("✅ Chat history restored in Gemini:", pastMessages);
     }
   } catch (error) {
     console.error("❌ Error loading chat history:", error);
   }
 };
 
-/** ✅ Send Message to Gemini (Handles Chat + Task Extraction) */
+/** ✅ Send Message to Gemini (Fixing Chat History Issue) */
 export const sendToGemini = async (userMessage: string) => {
   try {
     console.log("📩 Sending request to Gemini:", userMessage);
 
-    // ✅ Add user message to chat history
-    chat.history.push({
-      role: "user",
-      parts: [{ text: userMessage }],
-    });
-
     // ✅ Get AI Response
-    const result = await chat.sendMessage(userMessage);
+    const result = await chatSession.sendMessage(userMessage);
     const response = await result.response;
     const aiResponse = await response.text();
 
@@ -97,17 +88,18 @@ export const sendToGemini = async (userMessage: string) => {
     try {
       const parsedResponse = JSON.parse(aiResponse);
 
-      // ✅ Ensure the response contains a structured task
       if (parsedResponse.title && parsedResponse.dueDate) {
-        console.log("✅ Parsed Task Data:", parsedResponse);
-        return parsedResponse;
+        console.log("✅ Extracted Task Data:", parsedResponse);
+        return parsedResponse; // ✅ Return structured task
       }
     } catch (error) {
-      console.log("⚠ No structured task detected, returning raw text.");
-      return aiResponse; // ✅ Regular conversation response
+      console.log(
+        "⚠ No structured task detected, returning normal chat response."
+      );
+      return aiResponse; // ✅ Normal chat response
     }
 
-    return aiResponse; // ✅ Fallback in case of incomplete extraction
+    return aiResponse; // ✅ Fallback
   } catch (error) {
     console.error("❌ Gemini API Error:", error);
     return "❌ Error processing request.";
