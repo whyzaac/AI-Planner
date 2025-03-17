@@ -1,75 +1,97 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { PlusCircle, User } from "lucide-react-native";
-import { database, DATABASE_ID, COLLECTION_ID } from "../../services/appwrite";
+import {
+  database,
+  DATABASE_ID,
+  COLLECTION_ID_TASKS,
+  COLLECTION_ID_CHAT,
+} from "../../services/appwrite";
+import AddTaskModal from "../../components/AddTaskModal";
 
 const Index = () => {
+  // 📅 State Management
   const [selectedDate, setSelectedDate] = useState("2025-03-15");
-  const [allTasks, setAllTasks] = useState([]); // Store all tasks once
-  const [tasks, setTasks] = useState([]); // Store tasks for selected date
+  const [allTasks, setAllTasks] = useState([]); // Store all tasks from DB
+  const [tasks, setTasks] = useState([]); // Store filtered tasks for selected date
+  const [modalVisible, setModalVisible] = useState(false);
 
-  /** ✅ Fetch all tasks ONCE when component mounts */
+  /** ✅ Fetch all tasks ONCE when the app loads */
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  /** ✅ Filtering Logic: Runs when `selectedDate` or `allTasks` change */
+  /** 🔄 Update task list when selectedDate changes */
   useEffect(() => {
-    console.log("🔄 Filtering tasks for date:", selectedDate);
-    console.log("📋 All tasks before filtering:", allTasks);
-
-    // Extract only `YYYY-MM-DD` from `selectedDate`
-    const formattedDate = selectedDate.split("T")[0];
-
-    const filteredTasks = allTasks.filter((task) => {
-      if (!task.due_date) return false;
-
-      const taskDate = task.due_date.split("T")[0];
-
-      console.log(
-        `🔍 Checking Task: ${task.title} (Due: ${taskDate}) vs Selected: ${formattedDate}`
-      );
-
-      return taskDate === formattedDate;
-    });
-
-    console.log("✅ Filtered tasks after fixing date matching:", filteredTasks);
-    setTasks(filteredTasks);
+    filterTasks();
   }, [selectedDate, allTasks]);
 
-  /** ✅ Fetch All Tasks From Appwrite */
+  /** ✅ Fetch Tasks from Appwrite */
   const fetchTasks = async () => {
-    console.log("📡 Fetching tasks from Collection ID:", COLLECTION_ID);
-
+    console.log("📡 Fetching tasks from Collection ID:", COLLECTION_ID_TASKS);
     try {
-      const response = await database.listDocuments(DATABASE_ID, COLLECTION_ID);
-
+      const response = await database.listDocuments(
+        DATABASE_ID,
+        COLLECTION_ID_TASKS
+      );
       if (!response || !response.documents) {
         console.warn("⚠ No tasks found.");
         setAllTasks([]);
         return;
       }
 
-      console.log(
-        "📄 Raw response before processing:",
-        JSON.stringify(response, null, 2)
-      );
-
-      // ✅ Absolute Fix: Ensure response is converted into a clean JSON object
-      const clonedTasks = response.documents.map((task) =>
-        JSON.parse(JSON.stringify(task))
-      );
-
-      console.log("✅ Tasks fetched successfully:", clonedTasks);
-
-      setAllTasks(clonedTasks);
+      console.log("✅ Tasks fetched successfully:", response.documents);
+      setAllTasks(response.documents);
     } catch (error) {
-      console.error(
-        "❌ Error fetching tasks from Appwrite:",
-        error.message || error
+      console.error("❌ Error fetching tasks:", error.message || error);
+    }
+  };
+
+  /** 🔄 Filter tasks for the selected date */
+  const filterTasks = () => {
+    console.log("🔄 Filtering tasks for date:", selectedDate);
+
+    const filteredTasks = allTasks.filter((task) => {
+      if (!task.due_date) return false;
+
+      // Extract YYYY-MM-DD from task.due_date
+      const taskDate = task.due_date.split("T")[0];
+      return taskDate === selectedDate;
+    });
+
+    console.log("✅ Filtered tasks:", filteredTasks);
+    setTasks(filteredTasks);
+  };
+
+  /** ➕ Add a new task to Appwrite */
+  const addTask = async (newTask) => {
+    if (!newTask.title || !newTask.description || !newTask.dueDate) {
+      Alert.alert(
+        "Missing Fields",
+        "Please enter a valid due date before adding the task."
       );
+      return;
+    }
+
+    try {
+      const formattedDueDate = `${newTask.dueDate}T${
+        newTask.dueTime || "00:00"
+      }:00.000+00:00`;
+
+      await database.createDocument(DATABASE_ID, COLLECTION_ID, "unique()", {
+        title: newTask.title,
+        description: newTask.description,
+        due_date: formattedDueDate,
+        completed: false,
+      });
+
+      console.log("✅ Task added successfully!");
+      setModalVisible(false);
+      fetchTasks(); // Refresh tasks after adding
+    } catch (error) {
+      console.error("❌ Error adding task:", error.message || error);
     }
   };
 
@@ -83,7 +105,7 @@ const Index = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Calendar */}
+      {/* Calendar ✅ */}
       <View className="bg-white rounded-lg shadow-md p-3 mb-4">
         <Calendar
           onDayPress={(day) => setSelectedDate(day.dateString)}
@@ -121,15 +143,29 @@ const Index = () => {
             <View className="bg-white p-4 rounded-lg shadow-sm mb-2 border border-gray-200">
               <Text className="text-gray-900 font-medium">{item.title}</Text>
               <Text className="text-gray-500 text-sm">{item.description}</Text>
+              <Text className="text-gray-500 text-sm">
+                Due: {item.due_date.replace("T", " at ").replace("+00:00", "")}
+              </Text>
             </View>
           )}
         />
       )}
 
       {/* Floating Add Task Button */}
-      <TouchableOpacity className="absolute bottom-6 right-6 bg-blue-500 p-4 rounded-full shadow-lg">
+      <TouchableOpacity
+        className="absolute bottom-6 right-6 bg-blue-500 p-4 rounded-full shadow-lg"
+        onPress={() => setModalVisible(true)}
+      >
         <PlusCircle size={36} color="white" />
       </TouchableOpacity>
+
+      {/* Add Task Modal */}
+      <AddTaskModal
+        modalVisible={modalVisible}
+        setModalVisible={setModalVisible}
+        addTask={addTask}
+        defaultDueDate={selectedDate} // Pass selected calendar date
+      />
     </SafeAreaView>
   );
 };

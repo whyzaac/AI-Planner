@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { Home, Calendar, User } from "lucide-react-native"; // ✅ Correct native icon library
+import { Home, Calendar, User, BotMessageSquare } from "lucide-react-native"; // ✅ Correct native icon library
 
 const Layout = () => {
   return (
@@ -29,6 +29,17 @@ const Layout = () => {
           ),
         }}
       />
+      <Tabs.Screen
+        name="ChatScreen"
+        options={{
+          title: "Task Assistant",
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <BotMessageSquare size={size} color={color} />
+          ),
+        }}
+      />
+
       <Tabs.Screen
         name="profile"
         options={{
