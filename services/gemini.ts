@@ -21,7 +21,7 @@ Example event input:
 {
   "title": "Meeting",
   "dueDate": "2025-03-22",
-  "dueTime": "15:00",
+  "dueTime": "15:00:00",
   "location": "Starbucks"
 }
 \`\`\`

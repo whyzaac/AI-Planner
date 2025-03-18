@@ -33,7 +33,7 @@ const Index = () => {
 
   /** ✅ Fetch Tasks from Appwrite */
   const fetchTasks = async () => {
-    console.log("📡 Fetching tasks from Collection ID:", COLLECTION_ID_TASKS);
+    // console.log("📡 Fetching tasks from Collection ID:", COLLECTION_ID_TASKS); // For debugging
     try {
       const response = await database.listDocuments(
         DATABASE_ID,
@@ -45,7 +45,7 @@ const Index = () => {
         return;
       }
 
-      console.log("✅ Tasks fetched successfully:", response.documents);
+      // console.log("✅ Tasks fetched successfully:", response.documents); // For debugging
       setAllTasks(response.documents);
     } catch (error) {
       console.error("❌ Error fetching tasks:", error.message || error);
@@ -54,7 +54,7 @@ const Index = () => {
 
   /** 🔄 Filter tasks for the selected date */
   const filterTasks = () => {
-    console.log("🔄 Filtering tasks for date:", selectedDate);
+    // console.log("🔄 Filtering tasks for date:", selectedDate); // For debugging
 
     const filteredTasks = allTasks.filter((task) => {
       if (!task.due_date) return false;
@@ -64,7 +64,7 @@ const Index = () => {
       return taskDate === selectedDate;
     });
 
-    console.log("✅ Filtered tasks:", filteredTasks);
+    // console.log("✅ Filtered tasks:", filteredTasks); // For debugging
     setTasks(filteredTasks);
   };
 
@@ -95,7 +95,7 @@ const Index = () => {
         }
       );
 
-      console.log("✅ Task added successfully!");
+      // console.log("✅ Task added successfully!"); // For debugging
       setModalVisible(false);
       fetchTasks(); // Refresh tasks after adding
     } catch (error) {

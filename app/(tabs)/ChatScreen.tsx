@@ -19,6 +19,9 @@ import {
   COLLECTION_ID_TASKS,
 } from "../../services/appwrite";
 import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+
+dayjs.extend(utc);
 import { Query } from "react-native-appwrite";
 
 const ChatScreen = () => {
@@ -110,11 +113,11 @@ const ChatScreen = () => {
         const { title, dueDate, dueTime, location } = aiResponse;
 
         let formattedDueDate = null;
-        if (dueDate) {
-          formattedDueDate = dayjs(
-            `${dueDate} ${dueTime}`,
-            "YYYY-MM-DD hh:mm A"
-          ).toISOString();
+        if (dueDate && dueTime) {
+          formattedDueDate = dayjs(`${dueDate}T${dueTime}`).format(
+            "YYYY-MM-DDTHH:mm:ss"
+          );
+          console.log("✅ Final Time Stored in Appwrite:", formattedDueDate);
         }
 
         const newTask = {
