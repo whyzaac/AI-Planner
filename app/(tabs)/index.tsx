@@ -1,9 +1,17 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  Animated,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native"; // ✅ Import useFocusEffect
+import { useFocusEffect } from "@react-navigation/native";
 import { Calendar } from "react-native-calendars";
-import { PlusCircle, User } from "lucide-react-native";
+import { PlusCircle, User, CheckCircle, Circle } from "lucide-react-native";
+import moment from "moment";
 import {
   database,
   DATABASE_ID,
@@ -13,67 +21,48 @@ import {
 import AddTaskModal from "../../components/AddTaskModal";
 
 const Index = () => {
-  // 📅 State Management
-  const [selectedDate, setSelectedDate] = useState("2025-03-15");
-  const [allTasks, setAllTasks] = useState([]); // Store all tasks from DB
-  const [tasks, setTasks] = useState([]); // Store filtered tasks for selected date
+  const [selectedDate, setSelectedDate] = useState(
+    moment().format("YYYY-MM-DD")
+  );
+  const [allTasks, setAllTasks] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const scaleAnim = useState(new Animated.Value(1))[0];
 
-  /** ✅ Fetch all tasks when screen is focused */
   useFocusEffect(
     useCallback(() => {
       fetchTasks();
     }, [])
   );
 
-  /** 🔄 Update task list when selectedDate changes */
   useEffect(() => {
     filterTasks();
   }, [selectedDate, allTasks]);
 
-  /** ✅ Fetch Tasks from Appwrite */
   const fetchTasks = async () => {
-    // console.log("📡 Fetching tasks from Collection ID:", COLLECTION_ID_TASKS); // For debugging
     try {
       const response = await database.listDocuments(
         DATABASE_ID,
         COLLECTION_ID_TASKS
       );
-      if (!response || !response.documents) {
-        console.warn("⚠ No tasks found.");
-        setAllTasks([]);
-        return;
-      }
-
-      // console.log("✅ Tasks fetched successfully:", response.documents); // For debugging
-      setAllTasks(response.documents);
+      setAllTasks(response.documents || []);
     } catch (error) {
       console.error("❌ Error fetching tasks:", error.message || error);
     }
   };
 
-  /** 🔄 Filter tasks for the selected date */
   const filterTasks = () => {
-    // console.log("🔄 Filtering tasks for date:", selectedDate); // For debugging
-
-    const filteredTasks = allTasks.filter((task) => {
-      if (!task.due_date) return false;
-
-      // Extract YYYY-MM-DD from task.due_date
-      const taskDate = task.due_date.split("T")[0];
-      return taskDate === selectedDate;
-    });
-
-    // console.log("✅ Filtered tasks:", filteredTasks); // For debugging
+    const filteredTasks = allTasks.filter(
+      (task) => task.due_date?.split("T")[0] === selectedDate
+    );
     setTasks(filteredTasks);
   };
 
-  /** ➕ Add a new task to Appwrite */
   const addTask = async (newTask) => {
-    if (!newTask.title || !newTask.description || !newTask.dueDate) {
+    if (!newTask.title || !newTask.dueDate) {
       Alert.alert(
         "Missing Fields",
-        "Please enter a valid due date before adding the task."
+        "Please enter valid details before adding."
       );
       return;
     }
@@ -82,7 +71,6 @@ const Index = () => {
       const formattedDueDate = `${newTask.dueDate}T${
         newTask.dueTime || "00:00"
       }:00.000+00:00`;
-
       await database.createDocument(
         DATABASE_ID,
         COLLECTION_ID_TASKS,
@@ -94,18 +82,30 @@ const Index = () => {
           completed: false,
         }
       );
-
-      // console.log("✅ Task added successfully!"); // For debugging
       setModalVisible(false);
-      fetchTasks(); // Refresh tasks after adding
+      fetchTasks();
     } catch (error) {
       console.error("❌ Error adding task:", error.message || error);
     }
   };
 
+  const animateButton = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.2,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-gray-100 p-4">
-      {/* Header */}
       <View className="flex-row justify-between items-center mb-4">
         <Text className="text-2xl font-bold text-gray-900">{selectedDate}</Text>
         <TouchableOpacity>
@@ -113,12 +113,20 @@ const Index = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Calendar ✅ */}
       <View className="bg-white rounded-lg shadow-md p-3 mb-4">
         <Calendar
           onDayPress={(day) => setSelectedDate(day.dateString)}
           markedDates={{
             [selectedDate]: { selected: true, selectedColor: "#007AFF" },
+            ...allTasks.reduce((acc, task) => {
+              acc[task.due_date.split("T")[0]] = {
+                marked: true,
+                dotColor: "#007AFF",
+                selected: task.due_date.split("T")[0] === selectedDate,
+                selectedColor: "#007AFF",
+              };
+              return acc;
+            }, {}),
           }}
           theme={{
             calendarBackground: "#FFFFFF",
@@ -133,11 +141,9 @@ const Index = () => {
         />
       </View>
 
-      {/* Task List */}
       <Text className="text-lg font-bold text-gray-900 mb-2">
         Today's Tasks
       </Text>
-
       {tasks.length === 0 ? (
         <Text className="text-gray-500 text-center">
           No tasks for this date.
@@ -146,33 +152,54 @@ const Index = () => {
         <FlatList
           data={tasks}
           keyExtractor={(item) => item.$id}
-          extraData={tasks} // ✅ Ensures UI updates when tasks change
           renderItem={({ item }) => (
-            <View className="bg-white p-4 rounded-lg shadow-sm mb-2 border border-gray-200">
-              <Text className="text-gray-900 font-medium">{item.title}</Text>
+            <View
+              className={`bg-white p-4 rounded-lg shadow-sm mb-2 border ${
+                item.completed ? "border-green-500" : "border-gray-200"
+              }`}
+            >
+              <View className="flex-row justify-between items-center">
+                <Text className="text-gray-900 font-medium">{item.title}</Text>
+                {item.completed ? (
+                  <CheckCircle size={20} color="green" />
+                ) : (
+                  <Circle size={20} color="gray" />
+                )}
+              </View>
               <Text className="text-gray-500 text-sm">{item.description}</Text>
               <Text className="text-gray-500 text-sm">
-                Due: {item.due_date.replace("T", " at ").replace("+00:00", "")}
+                Due: {moment(item.due_date).format("MMM D, YYYY [at] h:mm A")}
               </Text>
             </View>
           )}
         />
       )}
 
-      {/* Floating Add Task Button */}
-      <TouchableOpacity
-        className="absolute bottom-6 right-6 bg-blue-500 p-4 rounded-full shadow-lg"
-        onPress={() => setModalVisible(true)}
+      <Animated.View
+        style={{
+          transform: [{ scale: scaleAnim }],
+          position: "absolute",
+          bottom: 20,
+          right: 20,
+          zIndex: 10,
+        }}
       >
-        <PlusCircle size={36} color="white" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          className="absolute bottom-4 right-4 bg-blue-500 p-3 rounded-full shadow-lg"
+          onPress={() => {
+            animateButton();
+            setModalVisible(true);
+          }}
+        >
+          <PlusCircle size={30} color="white" />
+        </TouchableOpacity>
+      </Animated.View>
 
-      {/* Add Task Modal */}
       <AddTaskModal
         modalVisible={modalVisible}
         setModalVisible={setModalVisible}
         addTask={addTask}
-        defaultDueDate={selectedDate} // Pass selected calendar date
+        defaultDueDate={selectedDate}
       />
     </SafeAreaView>
   );
