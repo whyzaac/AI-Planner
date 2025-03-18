@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, FlatList, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native"; // ✅ Import useFocusEffect
 import { Calendar } from "react-native-calendars";
 import { PlusCircle, User } from "lucide-react-native";
 import {
@@ -18,10 +19,12 @@ const Index = () => {
   const [tasks, setTasks] = useState([]); // Store filtered tasks for selected date
   const [modalVisible, setModalVisible] = useState(false);
 
-  /** ✅ Fetch all tasks ONCE when the app loads */
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  /** ✅ Fetch all tasks when screen is focused */
+  useFocusEffect(
+    useCallback(() => {
+      fetchTasks();
+    }, [])
+  );
 
   /** 🔄 Update task list when selectedDate changes */
   useEffect(() => {
